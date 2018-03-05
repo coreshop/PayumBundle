@@ -3,17 +3,18 @@
 namespace CoreShop\Bundle\PayumBundle\Extension;
 
 use CoreShop\Bundle\PayumBundle\Request\GetStatus;
+use CoreShop\Component\Order\Model\OrderInterface;
+use CoreShop\Component\Order\OrderTransitions;
 use CoreShop\Component\Payment\Model\PaymentInterface;
-use CoreShop\Component\Payment\PaymentTransitions;
-use CoreShop\Bundle\WorkflowBundle\Manager\StateMachineManager;
-use Doctrine\ORM\EntityManagerInterface;
+use CoreShop\Component\Resource\Repository\PimcoreRepositoryInterface;
+use CoreShop\Component\Resource\Workflow\StateMachineManager;
 use Payum\Core\Extension\Context;
 use Payum\Core\Extension\ExtensionInterface;
 use Payum\Core\Request\Generic;
 use Payum\Core\Request\GetStatusInterface;
 use Payum\Core\Request\Notify;
 
-final class UpdatePaymentStateExtension implements ExtensionInterface
+final class UpdateOrderStateExtension implements ExtensionInterface
 {
     /**
      * @var StateMachineManager
@@ -21,18 +22,18 @@ final class UpdatePaymentStateExtension implements ExtensionInterface
     private $stateMachineManager;
 
     /**
-     * @var EntityManagerInterface
+     * @var PimcoreRepositoryInterface
      */
-    protected $entityManager;
+    protected $orderRepository;
 
     /**
      * @param StateMachineManager $stateMachineManager
-     * @param EntityManagerInterface $entityManager
+     * @param PimcoreRepositoryInterface $orderRepository
      */
-    public function __construct(StateMachineManager $stateMachineManager, EntityManagerInterface $entityManager)
+    public function __construct(StateMachineManager $stateMachineManager, PimcoreRepositoryInterface $orderRepository)
     {
         $this->stateMachineManager = $stateMachineManager;
-        $this->entityManager = $entityManager;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -78,7 +79,7 @@ final class UpdatePaymentStateExtension implements ExtensionInterface
             return;
         }
 
-        if (false === $request instanceof GetStatusInterface && false === $request instanceof Notify) {
+        if (false === $request instanceof Notify) {
             return;
         }
 
@@ -90,22 +91,22 @@ final class UpdatePaymentStateExtension implements ExtensionInterface
 
         $context->getGateway()->execute($status = new GetStatus($payment));
         $value = $status->getValue();
-        if ($payment->getState() !== $value && PaymentInterface::STATE_UNKNOWN !== $value) {
-            $this->updatePaymentState($payment, $value);
-            $this->entityManager->persist($payment);
-            $this->entityManager->flush();
+        if (PaymentInterface::STATE_UNKNOWN !== $value) {
+            $order = $this->orderRepository->find($payment->getOrderId());
+            if($order instanceof OrderInterface) {
+                $this->confirmOrderState($order);
+            }
         }
     }
 
     /**
-     * @param PaymentInterface $payment
-     * @param string $nextState
+     * @param OrderInterface $order
      */
-    private function updatePaymentState(PaymentInterface $payment, string $nextState)
+    private function confirmOrderState(OrderInterface $order)
     {
-        $workflow = $this->stateMachineManager->get($payment, PaymentTransitions::IDENTIFIER);
-        if (null !== $transition = $this->stateMachineManager->getTransitionToState($workflow, $payment, $nextState)) {
-            $workflow->apply($payment, $transition);
+        $stateMachine = $this->stateMachineManager->get($order, 'coreshop_order');
+        if ($stateMachine->can($order, OrderTransitions::TRANSITION_CONFIRM)) {
+            $stateMachine->apply($order, OrderTransitions::TRANSITION_CONFIRM);
         }
     }
 }

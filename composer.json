@@ -21,6 +21,7 @@
     "php": "^7.2",
     "coreshop/order-bundle": "^2.0",
     "coreshop/payment-bundle": "^2.0",
+    "coreshop/payum-payment-bundle": "^2.1",
     "coreshop/core": "^2.0",
     "payum/payum-bundle": "^2.2",
     "payum/offline": "^1.4",

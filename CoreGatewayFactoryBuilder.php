@@ -12,19 +12,15 @@
 
 declare(strict_types=1);
 
-namespace CoreShop\Bundle\PayumBundle\Exception;
+namespace CoreShop\Bundle\PayumBundle;
 
-use Payum\Core\Bridge\Symfony\ReplyToSymfonyResponseConverter as BaseReplyToSymfonyResponseConverter;
-use Payum\Core\Reply\ReplyInterface;
-
-class ReplyToSymfonyResponseConverter extends BaseReplyToSymfonyResponseConverter
+class CoreGatewayFactoryBuilder extends \Payum\Core\Bridge\Symfony\Builder\CoreGatewayFactoryBuilder
 {
-    public function convert(ReplyInterface $reply)
+    public function build(array $defaultConfig)
     {
-        if ($reply instanceof ReplyException) {
-            throw $reply->getPrevious();
-        }
+        $coreGatewayFactory = new CoreGatewayFactory($defaultConfig);
+        $coreGatewayFactory->setContainer($this->container);
 
-        return parent::convert($reply);
+        return $coreGatewayFactory;
     }
 }

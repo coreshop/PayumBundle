@@ -12,19 +12,20 @@
 
 declare(strict_types=1);
 
-namespace CoreShop\Bundle\PayumBundle\Exception;
+namespace CoreShop\Bundle\PayumBundle;
 
-use Payum\Core\Bridge\Symfony\ReplyToSymfonyResponseConverter as BaseReplyToSymfonyResponseConverter;
-use Payum\Core\Reply\ReplyInterface;
+use Http\Adapter\Guzzle7\Client;
+use Payum\Core\Bridge\Spl\ArrayObject;
+use Payum\Core\Bridge\Symfony\ContainerAwareCoreGatewayFactory;
 
-class ReplyToSymfonyResponseConverter extends BaseReplyToSymfonyResponseConverter
+class CoreGatewayFactory extends ContainerAwareCoreGatewayFactory
 {
-    public function convert(ReplyInterface $reply)
+    public function createConfig(array $config = [])
     {
-        if ($reply instanceof ReplyException) {
-            throw $reply->getPrevious();
-        }
-
-        return parent::convert($reply);
+        return parent::createConfig([
+            'httplug.client'=>function (ArrayObject $config) {
+                return new Client();
+            }
+        ]);
     }
 }
